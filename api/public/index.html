@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analizador de Llamadas — Banco MultiMoney</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #232323; --bg2: #2d2d2d; --bg3: #333333;
+  --green: #4ade80; --green-glow: rgba(74,222,128,0.15);
+  --white: #f5f5f5; --muted: #999;
+  --border: rgba(255,255,255,0.08);
+  --red: #f87171; --yellow: #fbbf24;
+}
+body { background: var(--bg); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* HEADER */
+header { background: #1a1a1a; border-bottom: 1px solid var(--border); padding: 18px 40px; display: flex; align-items: center; gap: 12px; }
+.logo-icon { color: var(--green); font-size: 24px; font-weight: 800; }
+.logo-text { font-size: 15px; font-weight: 700; line-height: 1.1; }
+.logo-text span { color: var(--green); }
+.header-div { width: 1px; height: 28px; background: var(--border); margin: 0 16px; }
+.header-title { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* CONTAINER */
+.container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+/* PANEL */
+.panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 32px; }
+.panel-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.panel-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+/* TABS */
+.tabs-row { display: flex; gap: 8px; margin-bottom: 24px; }
+.tab-btn { flex: 1; padding: 11px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.tab-btn.active { border-color: var(--green); background: var(--green-glow); color: var(--green); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* UPLOAD */
+.upload-zone { border: 2px dashed var(--border); border-radius: 14px; padding: 36px 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+.upload-zone:hover, .upload-zone.drag { border-color: var(--green); background: rgba(74,222,128,0.04); }
+.upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.file-card { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.file-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.file-size { font-size: 11px; color: var(--muted); }
+.btn-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; margin-left: auto; padding: 4px; }
+.info-box { margin-top: 12px; padding: 10px 14px; background: rgba(74,222,128,0.05); border: 1px solid rgba(74,222,128,0.15); border-radius: 8px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+/* TEXTAREA */
+textarea { width: 100%; min-height: 180px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; color: var(--white); font-family: inherit; font-size: 13px; padding: 16px; resize: vertical; line-height: 1.6; outline: none; }
+textarea:focus { border-color: var(--green); }
+
+/* BUTTONS */
+.btn-row { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.btn-analyze { background: var(--green); color: #111; border: none; border-radius: 8px; padding: 12px 28px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; font-family: inherit; transition: all 0.2s; }
+.btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-clear { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; font-size: 14px; cursor: pointer; font-family: inherit; }
+.btn-export { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 8px 16px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit; }
+.btn-export:hover { border-color: var(--green); color: var(--green); }
+
+/* STATUS */
+.status-box { margin-top: 14px; padding: 12px 16px; border-radius: 10px; font-size: 13px; display: flex; align-items: center; gap: 10px; }
+.status-box.ready { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); color: var(--green); }
+.status-box.error { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); color: var(--red); }
+.msg-error { margin-top: 12px; color: var(--red); font-size: 13px; }
+.msg-success { margin-top: 12px; color: var(--green); font-size: 13px; }
+
+/* LOADING */
+.loading { text-align: center; padding: 48px; background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 32px; display: none; }
+.loading.active { display: block; }
+.spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+.loading-title { color: var(--green); font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+.loading-sub { color: var(--muted); font-size: 14px; }
+
+/* RESULT */
+#result { display: none; }
+#result.active { display: block; }
+.result-header { background: linear-gradient(135deg,#1a1a1a 0%,#222 100%); border: 1px solid var(--border); border-radius: 16px 16px 0 0; padding: 28px 32px; border-bottom: 2px solid var(--green); }
+.result-header-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; background: var(--green-glow); border: 1px solid rgba(74,222,128,0.3); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: var(--green); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+.result-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+.meta-row { font-size: 13px; color: var(--muted); display: flex; gap: 20px; flex-wrap: wrap; }
+.export-btns { display: flex; gap: 10px; }
+.result-body { background: var(--bg2); border: 1px solid var(--border); border-top: none; border-radius: 0 0 16px 16px; padding: 32px; }
+
+/* SECTIONS */
+.section { margin-bottom: 32px; }
+.section-title { font-size: 13px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.section-line { flex: 1; height: 1px; background: var(--border); }
+.resumen-box { background: var(--bg3); border-left: 3px solid var(--green); border-radius: 0 10px 10px 0; padding: 18px 20px; font-size: 14px; line-height: 1.7; color: #ddd; }
+
+/* TABLES */
+table { width: 100%; border-collapse: collapse; font-size: 13px; overflow-x: auto; }
+th { background: var(--bg3); color: var(--muted); font-weight: 600; text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.td-label { color: var(--muted); font-size: 12px; }
+.table-wrap { overflow-x: auto; }
+
+/* SCORE */
+.score-total-box { background: linear-gradient(135deg,rgba(74,222,128,0.1) 0%,rgba(74,222,128,0.03) 100%); border: 1px solid rgba(74,222,128,0.25); border-radius: 12px; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.score-total-label { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.score-total-value { font-size: 28px; font-weight: 800; color: var(--green); }
+.score-tag { font-size: 13px; font-weight: 600; padding: 5px 14px; border-radius: 20px; }
+.score-green { background: rgba(74,222,128,0.15); color: var(--green); }
+.score-yellow { background: rgba(251,191,36,0.15); color: var(--yellow); }
+.score-red { background: rgba(248,113,113,0.15); color: var(--red); }
+
+/* EVAL GRID */
+.eval-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.eval-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.eval-card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.eval-card-value { font-size: 14px; font-weight: 500; }
+
+/* BULLETS */
+.bullet-item { display: flex; gap: 12px; align-items: flex-start; background: var(--bg3); border-radius: 10px; padding: 14px 16px; font-size: 13px; line-height: 1.6; margin-bottom: 8px; }
+.bullet-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--green); }
+
+/* MEJORAS */
+.mejora-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; }
+.mejora-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.mejora-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.mejora-num.alta { background: var(--red); color: #fff; }
+.mejora-num.media { background: var(--yellow); color: #111; }
+.mejora-title { font-size: 14px; font-weight: 700; }
+.mejora-body { font-size: 13px; line-height: 1.7; color: #ccc; }
+.mejora-quote { background: rgba(74,222,128,0.08); border-left: 2px solid var(--green); border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 10px 0; font-style: italic; font-size: 13px; color: #bbb; }
+
+/* PLAN */
+.plan-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 22px; margin-bottom: 14px; }
+.plan-priority { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; padding: 3px 10px; border-radius: 20px; }
+.plan-priority.alta { background: rgba(248,113,113,0.15); color: var(--red); }
+.plan-priority.media { background: rgba(251,191,36,0.15); color: var(--yellow); }
+.plan-priority.baja { background: rgba(74,222,128,0.15); color: var(--green); }
+.plan-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+.plan-row { margin-bottom: 12px; }
+.plan-row-label { font-size: 11px; color: var(--green); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 5px; }
+.plan-row-content { font-size: 13px; line-height: 1.7; color: #ccc; }
+.plan-bullet { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: #ccc; line-height: 1.6; margin-bottom: 6px; }
+.plan-bullet span:first-child { color: var(--green); flex-shrink: 0; }
+
+@media(max-width:640px) { .eval-grid { grid-template-columns: 1fr; } header { padding: 18px 20px; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logo-icon">✳</div>
+    <div class="logo-text">multi<br><span>money</span></div>
+  </div>
+  <div class="header-div"></div>
+  <div class="header-title">Analizador de Llamadas</div>
+</header>
+
+<div class="container">
+
+  <!-- INPUT PANEL -->
+  <div class="panel">
+    <div class="panel-title">📞 Nueva Llamada</div>
+    <div class="panel-sub">Sube un audio MP3 o pega la transcripción para obtener el análisis completo.</div>
+
+    <!-- TABS -->
+    <div class="tabs-row">
+      <button class="tab-btn active" id="tabBtnAudio" onclick="switchTab('audio')">🎙 Subir Audio MP3</button>
+      <button class="tab-btn" id="tabBtnTranscripcion" onclick="switchTab('transcripcion')">📝 Pegar Transcripción</button>
+    </div>
+
+    <!-- TAB AUDIO -->
+    <div class="tab-panel active" id="tabAudio">
+      <div class="upload-zone" id="uploadZone" onclick="triggerFile()" ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+        <input type="file" id="audioInput" accept=".mp3,.wav,.m4a,.ogg,.webm,.mp4,audio/*" onchange="handleFile(event)" onclick="event.stopPropagation()">
+        <div style="font-size:38px;margin-bottom:10px">🎙</div>
+        <div id="uploadTitle" style="font-size:15px;font-weight:700;margin-bottom:6px">Arrastra tu audio aquí</div>
+        <div id="uploadSub" style="font-size:12px;color:var(--muted)">o haz clic para seleccionar · MP3, WAV, M4A · Máx 25MB</div>
+      </div>
+      <div class="file-card" id="fileCard" style="display:none">
+        <span style="font-size:22px">🎵</span>
+        <div style="flex:1">
+          <div class="file-name" id="fileName">—</div>
+          <div class="file-size" id="fileSize">—</div>
+        </div>
+        <button class="btn-remove" onclick="removeAudio()">✕</button>
+      </div>
+      <div class="status-box ready" id="audioStatus" style="display:none"></div>
+      <div class="info-box">💡 El audio se transcribe automáticamente en el navegador (Chrome) y luego Claude genera el análisis completo. Asegúrate de usar <strong>Google Chrome</strong> para mejores resultados.</div>
+    </div>
+
+    <!-- TAB TRANSCRIPCION -->
+    <div class="tab-panel" id="tabTranscripcion">
+      <textarea id="transcripcionInput" placeholder="0:01 Aló?&#10;0:03 Buenas tardes...&#10;&#10;Pega aquí la transcripción completa de la llamada."></textarea>
+    </div>
+
+    <!-- BUTTONS -->
+    <div class="btn-row">
+      <button class="btn-analyze" id="btnAnalizar" onclick="analizar()">
+        <span>⚡</span> Analizar Llamada
+      </button>
+      <button class="btn-clear" onclick="limpiar()">Limpiar</button>
+    </div>
+    <div id="msgError" class="msg-error" style="display:none"></div>
+    <div id="msgCopied" class="msg-success" style="display:none">✅ Análisis copiado al portapapeles</div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-title" id="loadingTitle">Analizando llamada...</div>
+    <div class="loading-sub" id="loadingSub">Evaluando criterios de desempeño del asesor</div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result">
+    <div id="resultHeader" class="result-header">
+      <div class="result-header-top">
+        <div>
+          <div class="badge">📞 Análisis de Llamada</div>
+          <div class="result-title">Banco MultiMoney</div>
+          <div class="meta-row" id="metaRow"></div>
+        </div>
+        <div class="export-btns">
+          <button class="btn-export" onclick="copiar()">📋 Copiar</button>
+          <button class="btn-export" onclick="exportarPDF()">📄 PDF</button>
+        </div>
+      </div>
+    </div>
+    <div class="result-body" id="resultBody"></div>
+  </div>
+
+</div>
+
+<script>
+const SYSTEM_PROMPT = `Eres un evaluador experto de llamadas de ventas de créditos personales de Banco MultiMoney.
+
+Analiza la transcripción completa y genera un análisis estructurado en formato JSON con exactamente esta estructura:
+
+{
+  "agente": "nombre del agente extraído de la transcripción",
+  "cliente": "nombre del cliente extraído de la transcripción",
+  "duracion": "duración estimada en formato ~X:XX min",
+  "tipo": "Llamada de oferta de crédito (Power Dialer)",
+  "resumen": "Párrafo directo de 2-3 oraciones enfocado en la llamada, con cita textual del cliente si aplica. Describe el patrón dominante.",
+  "evaluaciones": {
+    "resultado_llamada": "una de: Acepta Venta / No acepta tasa alta / No acepta monto bajo / No acepta no lo necesita / No acepta desembolso alto / No acepta tiene otras deudas / No acepta / No aplica / Seguimiento / Volver a llamar / Post venta",
+    "oferta_wow": "una de: Oferta con cierre / Oferta sin cierre / Presentación incompleta / No hay oferta clara / No aplica",
+    "comportamiento_negativa": "una de: Sondeo de negativa / Argumenta la negativa / presenta la oferta sin sondear la negativa / Aceptó la negativa y no hay intención de venta / No aplica",
+    "sondeo_negativa": "una de: Sondeo de la negativa / evasión de la negativa / sin sondeo de la negativa / Sin negativa registrada / No aplica",
+    "senales_cierre": "una de: Conexión con necesidad del cliente / Manejo de objeción que desbloqueó la conversación / Cierre solicitado explícitamente / Cliente con necesidad preexistente clara / No determinable",
+    "motivo_no_acepta": "una de: Sin negociación / se maneja la objeción / Busca el recontacto"
+  },
+  "puntajes": {
+    "introduccion": { "peso": 0.5, "puntaje": 0, "obtenido": 0 },
+    "escucha_activa": { "peso": 1.0, "puntaje": 0, "obtenido": 0 },
+    "sondeo": { "peso": 1.5, "puntaje": 0, "obtenido": 0 },
+    "negociacion": { "peso": 1.5, "puntaje": 0, "obtenido": 0 },
+    "cierre": { "peso": 0.5, "puntaje": 0, "obtenido": 0 },
+    "total": 0,
+    "clasificacion": "una de: No cumple expectativas / Cumple expectativas / Supera expectativas",
+    "evaluacion_general": "una de: supera expectativas / cumple expectativas / No cumple expectativas / Inaceptable / No evaluable"
+  },
+  "tono_agente": "descripción breve",
+  "tono_cliente": "descripción breve",
+  "resultado_emoji": "❌ o ✅",
+  "resultado_texto": "descripción del resultado",
+  "fortalezas": ["fortaleza 1", "fortaleza 2", "fortaleza 3"],
+  "oportunidades": [
+    {
+      "prioridad": "alta o media",
+      "titulo": "Título corto",
+      "descripcion": "Descripción del problema observado",
+      "ejemplo_bien": "ejemplo concreto de lo que debió decir el asesor"
+    }
+  ],
+  "plan_accion": [
+    {
+      "prioridad": "ALTA o MEDIA o BAJA",
+      "titulo": "Título del área de mejora (puntaje/5)",
+      "que_trabajar": "descripción de qué trabajar",
+      "como_trabajarlo": ["acción 1", "acción 2", "acción 3", "acción 4"],
+      "para_que": "explicación del impacto en resultados"
+    }
+  ]
+}
+
+FÓRMULA DE CÁLCULO — MUY IMPORTANTE:
+El campo "obtenido" se calcula: obtenido = (puntaje / 5) × peso
+Ejemplos correctos:
+• introduccion: puntaje=3, peso=0.5 → obtenido = (3/5)×0.5 = 0.30
+• escucha_activa: puntaje=4, peso=1.0 → obtenido = (4/5)×1.0 = 0.80
+• sondeo: puntaje=2, peso=1.5 → obtenido = (2/5)×1.5 = 0.60
+• negociacion: puntaje=2, peso=1.5 → obtenido = (2/5)×1.5 = 0.60
+• cierre: puntaje=1, peso=0.5 → obtenido = (1/5)×0.5 = 0.10
+El campo "total" es la suma de todos los "obtenido". Máximo posible: 5.0
+
+ESCALA DE PUNTUACIÓN:
+- 1.00 a 2.99 = No cumple expectativas
+- 3.00 a 3.99 = Cumple expectativas
+- 4.00 a 5.00 = Supera expectativas
+
+Devuelve ÚNICAMENTE el JSON válido, sin texto adicional, sin markdown, sin backticks.`;
+
+let currentTab = 'audio';
+let audioFile = null;
+let analisis = null;
+
+// TABS
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tabBtn' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('result').classList.remove('active');
+  analisis = null;
+}
+
+// FILE
+function triggerFile() {
+  if (!audioFile) document.getElementById('audioInput').click();
+}
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (file) setFile(file);
+}
+function setFile(file) {
+  const validExts = ['.mp3','.wav','.m4a','.ogg','.webm','.mp4'];
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  if (!validExts.includes(ext)) { showStatus('error', 'Formato no válido. Usa MP3, WAV, M4A o OGG.'); return; }
+  if (file.size > 25*1024*1024) { showStatus('error', 'El archivo supera los 25MB.'); return; }
+  audioFile = file;
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileSize').textContent = (file.size/1024/1024).toFixed(2) + ' MB · Listo para analizar';
+  document.getElementById('fileCard').style.display = 'flex';
+  document.getElementById('uploadTitle').textContent = file.name;
+  document.getElementById('uploadSub').textContent = (file.size/1024/1024).toFixed(2) + ' MB';
+  showStatus('ready', '✅ Archivo listo para analizar');
+  hideError();
+}
+function removeAudio() {
+  audioFile = null;
+  document.getElementById('audioInput').value = '';
+  document.getElementById('fileCard').style.display = 'none';
+  document.getElementById('audioStatus').style.display = 'none';
+  document.getElementById('uploadTitle').textContent = 'Arrastra tu audio aquí';
+  document.getElementById('uploadSub').textContent = 'o haz clic para seleccionar · MP3, WAV, M4A · Máx 25MB';
+}
+function showStatus(type, msg) {
+  const el = document.getElementById('audioStatus');
+  el.className = 'status-box ' + type;
+  el.textContent = msg;
+  el.style.display = 'flex';
+}
+function onDragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag'); }
+function onDragLeave() { document.getElementById('uploadZone').classList.remove('drag'); }
+function onDrop(e) { e.preventDefault(); document.getElementById('uploadZone').classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f) setFile(f); }
+
+// ANALYZE
+async function analizar() {
+  if (currentTab === 'audio') {
+    await analizarAudio();
+  } else {
+    await analizarTexto();
+  }
+}
+
+async function analizarAudio() {
+  if (!audioFile) { showError('Por favor selecciona un archivo de audio.'); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showError('Tu navegador no soporta transcripción automática. Usa Google Chrome, o cambia a la pestaña Pegar Transcripción.'); return; }
+  setLoading(true, 'Transcribiendo audio...', 'Escuchando la llamada en tiempo real...');
+  try {
+    const transcripcion = await new Promise((resolve, reject) => {
+      const audio = new Audio();
+      const url = URL.createObjectURL(audioFile);
+      audio.src = url;
+      audio.volume = 0.01;
+      const recognition = new SR();
+      recognition.lang = 'es-GT';
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      let finalText = '';
+      let hasEnded = false;
+      recognition.onresult = (e) => {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) finalText += e.results[i][0].transcript + ' ';
+        }
+      };
+      recognition.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') console.warn('Speech error:', e.error); };
+      recognition.onend = () => {
+        if (!hasEnded && !audio.paused && audio.currentTime < audio.duration - 0.5) recognition.start();
+        else if (hasEnded || audio.ended) { URL.revokeObjectURL(url); resolve(finalText.trim()); }
+      };
+      audio.onended = () => {
+        hasEnded = true;
+        setTimeout(() => { recognition.stop(); URL.revokeObjectURL(url); resolve(finalText.trim()); }, 1500);
+      };
+      audio.onerror = () => reject(new Error('Error al reproducir el audio'));
+      audio.play().then(() => recognition.start()).catch(() => reject(new Error('El navegador bloqueó la reproducción. Haz clic en la página primero e inténtalo nuevamente.')));
+    });
+    if (!transcripcion || transcripcion.length < 20) throw new Error('No se pudo transcribir el audio. Prueba en Google Chrome o usa la pestaña Pegar Transcripción.');
+    setLoading(true, 'Analizando con Claude...', 'Evaluando criterios de desempeño del asesor...');
+    await llamarClaude(transcripcion);
+  } catch (err) {
+    setLoading(false);
+    showError('Error: ' + err.message);
+  }
+}
+
+async function analizarTexto() {
+  const texto = document.getElementById('transcripcionInput').value.trim();
+  if (!texto) { showError('Por favor pega una transcripción.'); return; }
+  setLoading(true, 'Analizando transcripción...', 'Evaluando criterios de desempeño del asesor...');
+  try {
+    await llamarClaude(texto);
+  } catch (err) {
+    setLoading(false);
+    showError('Error: ' + err.message);
+  }
+}
+
+async function llamarClaude(transcripcion) {
+  const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transcripcion })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Error de API');
+  analisis = data;
+  setLoading(false);
+  renderResultado(analisis);
+}
+
+function renderResultado(a) {
+  const p = a.puntajes;
+  const total = parseFloat(p.total);
+  const scoreClass = total >= 4 ? 'score-green' : total >= 3 ? 'score-yellow' : 'score-red';
+
+  document.getElementById('metaRow').innerHTML =
+    `<span>👤 ${a.agente}</span><span>🧑 ${a.cliente}</span><span>⏱ ${a.duracion}</span><span>📱 ${a.tipo}</span>`;
+
+  let html = '';
+
+  // RESUMEN
+  html += `<div class="section"><div class="section-title">Resumen<div class="section-line"></div></div><div class="resumen-box">${a.resumen}</div></div>`;
+
+  // EVALUACIONES
+  html += `<div class="section"><div class="section-title">Evaluaciones por Criterio<div class="section-line"></div></div><div class="table-wrap"><table>
+    <thead><tr><th>Criterio</th><th>Resultado</th></tr></thead><tbody>
+    ${[['Resultado de la llamada',a.evaluaciones.resultado_llamada],['Oferta WOW',a.evaluaciones.oferta_wow],['Comportamiento ante la negativa',a.evaluaciones.comportamiento_negativa],['Sondeo de la negativa',a.evaluaciones.sondeo_negativa],['Señales de cierre',a.evaluaciones.senales_cierre],['Motivo por el que no acepta',a.evaluaciones.motivo_no_acepta]].map(([l,v])=>`<tr><td class="td-label">${l}</td><td style="font-weight:500">${v}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+
+  // PUNTAJE
+  html += `<div class="section"><div class="section-title">Puntaje por Criterio<div class="section-line"></div></div><div class="table-wrap"><table>
+    <thead><tr><th>Criterio</th><th>Peso</th><th>Puntaje</th><th>Puntos obtenidos</th></tr></thead><tbody>
+    ${[['Introducción / Oferta WOW',p.introduccion],['Escucha activa',p.escucha_activa],['Sondeo',p.sondeo],['Negociación',p.negociacion],['Cierre con propósito',p.cierre]].map(([l,r])=>`<tr><td class="td-label">${l}</td><td>${r.peso}</td><td>${r.puntaje}/5</td><td>${parseFloat(r.obtenido).toFixed(2)}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="score-total-box">
+      <div><div class="score-total-label">Puntaje Total</div><div class="score-total-value">${total.toFixed(2)} <span style="font-size:16px;color:var(--muted)">/ 5</span></div></div>
+      <div class="score-tag ${scoreClass}">${p.clasificacion}</div>
+    </div></div>`;
+
+  // EVALUACION
+  html += `<div class="section"><div class="section-title">Evaluación<div class="section-line"></div></div>
+    <div class="eval-grid">
+      <div class="eval-card"><div class="eval-card-label">Tono del agente</div><div class="eval-card-value">${a.tono_agente}</div></div>
+      <div class="eval-card"><div class="eval-card-label">Tono del cliente</div><div class="eval-card-value">${a.tono_cliente}</div></div>
+      <div class="eval-card"><div class="eval-card-label">Resultado</div><div class="eval-card-value">${a.resultado_emoji} ${a.resultado_texto}</div></div>
+    </div></div>`;
+
+  // FORTALEZAS
+  html += `<div class="section"><div class="section-title">💪 Fortalezas del Agente<div class="section-line"></div></div>
+    ${a.fortalezas.map(f=>`<div class="bullet-item"><div class="bullet-dot"></div><div>${f}</div></div>`).join('')}</div>`;
+
+  // OPORTUNIDADES
+  html += `<div class="section"><div class="section-title">🎯 Oportunidades de Mejora<div class="section-line"></div></div>
+    ${a.oportunidades.map((op,i)=>`
+    <div class="mejora-item">
+      <div class="mejora-header">
+        <div class="mejora-num ${op.prioridad==='alta'?'alta':'media'}">${i+1}</div>
+        <div class="mejora-title">${op.prioridad==='alta'?'🔴':'🟡'} ${op.titulo}</div>
+      </div>
+      <div class="mejora-body">${op.descripcion}${op.ejemplo_bien?`<div class="mejora-quote">"${op.ejemplo_bien}"</div>`:''}</div>
+    </div>`).join('')}</div>`;
+
+  // PLAN DE ACCION
+  html += `<div class="section"><div class="section-title">🗂 Plan de Acción — ${a.agente}<div class="section-line"></div></div>
+    ${a.plan_accion.map(plan=>`
+    <div class="plan-card">
+      <div class="plan-priority ${plan.prioridad.toLowerCase()}">🔴 PRIORIDAD ${plan.prioridad}</div>
+      <div class="plan-title">${plan.titulo}</div>
+      <div class="plan-row"><div class="plan-row-label">¿Qué trabajar?</div><div class="plan-row-content">${plan.que_trabajar}</div></div>
+      <div class="plan-row"><div class="plan-row-label">¿Cómo trabajarlo?</div>${plan.como_trabajarlo.map(c=>`<div class="plan-bullet"><span>→</span><span>${c}</span></div>`).join('')}</div>
+      <div class="plan-row"><div class="plan-row-label">¿Para qué le sirve?</div><div class="plan-row-content">${plan.para_que}</div></div>
+    </div>`).join('')}</div>`;
+
+  document.getElementById('resultBody').innerHTML = html;
+  document.getElementById('result').classList.add('active');
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+}
+
+function limpiar() {
+  document.getElementById('transcripcionInput').value = '';
+  document.getElementById('result').classList.remove('active');
+  removeAudio();
+  analisis = null;
+  hideError();
+}
+
+function copiar() {
+  if (!analisis) return;
+  const a = analisis; const p = a.puntajes;
+  let txt = `📞 Análisis de Llamada — Banco MultiMoney\nAgente: ${a.agente} | Cliente: ${a.cliente}\nDuración: ${a.duracion}\n\nRESUMEN\n${a.resumen}\n\nEVALUACIONES\n`;
+  Object.entries(a.evaluaciones).forEach(([k,v]) => { txt += `• ${k}: ${v}\n`; });
+  txt += `\nPUNTAJE TOTAL: ${parseFloat(p.total).toFixed(2)} / 5 — ${p.clasificacion}\n\nFORTALEZAS\n${a.fortalezas.map(f=>`• ${f}`).join('\n')}\n\nOPORTUNIDADES\n`;
+  a.oportunidades.forEach((op,i) => { txt += `${i+1}. ${op.titulo}\n${op.descripcion}\n${op.ejemplo_bien?`   → "${op.ejemplo_bien}"\n`:''}\n`; });
+  txt += `PLAN DE ACCIÓN\n`;
+  a.plan_accion.forEach(plan => { txt += `PRIORIDAD ${plan.prioridad} — ${plan.titulo}\n¿Qué? ${plan.que_trabajar}\n¿Cómo? ${plan.como_trabajarlo.join(' / ')}\n¿Para qué? ${plan.para_que}\n\n`; });
+  navigator.clipboard.writeText(txt).then(() => {
+    const el = document.getElementById('msgCopied');
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 2000);
+  });
+}
+
+function exportarPDF() {
+  if (!analisis) return;
+  const a = analisis; const p = a.puntajes;
+  const totalF = parseFloat(p.total);
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Análisis — ${a.agente}</title>
+<style>body{font-family:Arial,sans-serif;font-size:12px;color:#222;padding:40px;max-width:800px;margin:0 auto}h1{font-size:18px;color:#111;border-bottom:3px solid #4ade80;padding-bottom:8px;margin-bottom:4px}h2{font-size:13px;color:#16a34a;text-transform:uppercase;letter-spacing:1px;margin:24px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px}.meta{color:#555;font-size:12px;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{background:#f5f5f5;text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;color:#777}td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px}.score-box{background:#f9fafb;border:2px solid #4ade80;border-radius:8px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;margin-top:8px}.score-num{font-size:28px;font-weight:bold;color:#111}.score-tag{font-size:12px;font-weight:bold;padding:4px 12px;border-radius:12px;background:#fee2e2;color:#dc2626}.score-tag.cumple{background:#fef9c3;color:#d97706}.score-tag.supera{background:#dcfce7;color:#16a34a}.eval-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.eval-card{background:#f9fafb;border:1px solid #eee;border-radius:6px;padding:10px 12px}.eval-label{font-size:10px;color:#999;text-transform:uppercase;margin-bottom:4px}.bullet{display:flex;gap:8px;margin-bottom:6px;font-size:12px}.dot{width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;margin-top:4px}.mejora{background:#fafafa;border:1px solid #eee;border-radius:8px;padding:14px;margin-bottom:10px}.mejora-title{font-weight:bold;margin-bottom:6px;font-size:13px}.mejora-quote{background:#f0fdf4;border-left:3px solid #4ade80;padding:8px 12px;margin:8px 0;font-style:italic;font-size:11px;color:#555}.plan{background:#fafafa;border:1px solid #eee;border-radius:8px;padding:14px;margin-bottom:10px}.plan-label{font-size:10px;color:#16a34a;text-transform:uppercase;font-weight:bold;margin:10px 0 4px}.plan-bullet{display:flex;gap:6px;font-size:12px;margin-bottom:4px;color:#444}.priority-badge{display:inline-block;font-size:10px;font-weight:bold;padding:2px 10px;border-radius:10px;background:#fee2e2;color:#dc2626;margin-bottom:8px}.resumen{background:#f0fdf4;border-left:3px solid #4ade80;padding:12px 16px;border-radius:0 8px 8px 0;line-height:1.7;color:#333;margin-bottom:8px}</style></head><body>
+<h1>📞 Análisis de Llamada — Banco MultiMoney</h1>
+<div class="meta"><strong>Agente:</strong> ${a.agente} &nbsp;|&nbsp; <strong>Cliente:</strong> ${a.cliente} &nbsp;|&nbsp; <strong>Duración:</strong> ${a.duracion} &nbsp;|&nbsp; <strong>Tipo:</strong> ${a.tipo}</div>
+<h2>Resumen</h2><div class="resumen">${a.resumen}</div>
+<h2>Evaluaciones por Criterio</h2><table><thead><tr><th>Criterio</th><th>Resultado</th></tr></thead><tbody>
+${[['Resultado de la llamada',a.evaluaciones.resultado_llamada],['Oferta WOW',a.evaluaciones.oferta_wow],['Comportamiento ante la negativa',a.evaluaciones.comportamiento_negativa],['Sondeo de la negativa',a.evaluaciones.sondeo_negativa],['Señales de cierre',a.evaluaciones.senales_cierre],['Motivo por el que no acepta',a.evaluaciones.motivo_no_acepta]].map(([l,v])=>`<tr><td style="color:#777">${l}</td><td>${v}</td></tr>`).join('')}
+</tbody></table>
+<h2>Puntaje por Criterio</h2><table><thead><tr><th>Criterio</th><th>Peso</th><th>Puntaje</th><th>Puntos obtenidos</th></tr></thead><tbody>
+<tr><td style="color:#777">Introducción / Oferta WOW</td><td>${p.introduccion.peso}</td><td>${p.introduccion.puntaje}/5</td><td>${parseFloat(p.introduccion.obtenido).toFixed(2)}</td></tr>
+<tr><td style="color:#777">Escucha activa</td><td>${p.escucha_activa.peso}</td><td>${p.escucha_activa.puntaje}/5</td><td>${parseFloat(p.escucha_activa.obtenido).toFixed(2)}</td></tr>
+<tr><td style="color:#777">Sondeo</td><td>${p.sondeo.peso}</td><td>${p.sondeo.puntaje}/5</td><td>${parseFloat(p.sondeo.obtenido).toFixed(2)}</td></tr>
+<tr><td style="color:#777">Negociación</td><td>${p.negociacion.peso}</td><td>${p.negociacion.puntaje}/5</td><td>${parseFloat(p.negociacion.obtenido).toFixed(2)}</td></tr>
+<tr><td style="color:#777">Cierre con propósito</td><td>${p.cierre.peso}</td><td>${p.cierre.puntaje}/5</td><td>${parseFloat(p.cierre.obtenido).toFixed(2)}</td></tr>
+</tbody></table>
+<div class="score-box"><div><div style="font-size:11px;color:#999;text-transform:uppercase">Puntaje Total</div><div class="score-num">${totalF.toFixed(2)} <span style="font-size:16px;color:#999">/ 5</span></div></div><div class="score-tag ${totalF>=4?'supera':totalF>=3?'cumple':''}">${p.clasificacion}</div></div>
+<h2>Evaluación</h2><div class="eval-grid">
+<div class="eval-card"><div class="eval-label">Tono del agente</div><div>${a.tono_agente}</div></div>
+<div class="eval-card"><div class="eval-label">Tono del cliente</div><div>${a.tono_cliente}</div></div>
+<div class="eval-card"><div class="eval-label">Resultado</div><div>${a.resultado_emoji} ${a.resultado_texto}</div></div>
+</div>
+<h2>Fortalezas del Agente</h2>${a.fortalezas.map(f=>`<div class="bullet"><div class="dot"></div><div>${f}</div></div>`).join('')}
+<h2>Oportunidades de Mejora</h2>${a.oportunidades.map((op,i)=>`<div class="mejora"><div class="mejora-title">${i+1}. ${op.prioridad==='alta'?'🔴':'🟡'} ${op.titulo}</div><div style="color:#444;line-height:1.6">${op.descripcion}</div>${op.ejemplo_bien?`<div class="mejora-quote">"${op.ejemplo_bien}"</div>`:''}</div>`).join('')}
+<h2>Plan de Acción — ${a.agente}</h2>${a.plan_accion.map(plan=>`<div class="plan"><div class="priority-badge">PRIORIDAD ${plan.prioridad}</div><div style="font-weight:bold;font-size:14px;margin-bottom:10px">${plan.titulo}</div><div class="plan-label">¿Qué trabajar?</div><div style="color:#444;font-size:12px">${plan.que_trabajar}</div><div class="plan-label">¿Cómo trabajarlo?</div>${plan.como_trabajarlo.map(c=>`<div class="plan-bullet"><span style="color:#4ade80">→</span><span>${c}</span></div>`).join('')}<div class="plan-label">¿Para qué le sirve?</div><div style="color:#444;font-size:12px">${plan.para_que}</div></div>`).join('')}
+</body></html>`;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `analisis-${a.agente.replace(/\s+/g,'-')}-${a.cliente.replace(/\s+/g,'-')}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function setLoading(active, title, sub) {
+  const el = document.getElementById('loading');
+  const btn = document.getElementById('btnAnalizar');
+  if (active) {
+    el.classList.add('active');
+    btn.disabled = true;
+    document.getElementById('loadingTitle').textContent = title || 'Analizando llamada...';
+    document.getElementById('loadingSub').textContent = sub || 'Evaluando criterios de desempeño del asesor';
+    document.getElementById('result').classList.remove('active');
+  } else {
+    el.classList.remove('active');
+    btn.disabled = false;
+  }
+}
+function showError(msg) { const el = document.getElementById('msgError'); el.textContent = '⚠️ ' + msg; el.style.display = 'block'; }
+function hideError() { document.getElementById('msgError').style.display = 'none'; }
+</script>
+</body>
+</html>
